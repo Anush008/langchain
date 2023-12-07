@@ -4,11 +4,10 @@ from __future__ import annotations
 import warnings
 from abc import ABC
 from string import Formatter
-from typing import Any, Callable, Dict, List, Literal, Set
+from typing import Any, Callable, Dict, List, Set
 
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.prompt_values import PromptValue, StringPromptValue
 from langchain_core.prompts.base import BasePromptTemplate
-from langchain_core.prompts.value import PromptValue
 from langchain_core.utils.formatting import formatter
 
 
@@ -107,20 +106,20 @@ def check_valid_template(
     Raises:
         ValueError: If the template format is not supported.
     """
-    if template_format not in DEFAULT_FORMATTER_MAPPING:
-        valid_formats = list(DEFAULT_FORMATTER_MAPPING)
-        raise ValueError(
-            f"Invalid template format. Got `{template_format}`;"
-            f" should be one of {valid_formats}"
-        )
     try:
         validator_func = DEFAULT_VALIDATOR_MAPPING[template_format]
-        validator_func(template, input_variables)
-    except KeyError as e:
+    except KeyError as exc:
         raise ValueError(
-            "Invalid prompt schema; check for mismatched or missing input parameters. "
-            + str(e)
-        )
+            f"Invalid template format {template_format!r}, should be one of"
+            f" {list(DEFAULT_FORMATTER_MAPPING)}."
+        ) from exc
+    try:
+        validator_func(template, input_variables)
+    except (KeyError, IndexError) as exc:
+        raise ValueError(
+            "Invalid prompt schema; check for mismatched or missing input parameters"
+            f" from {input_variables}."
+        ) from exc
 
 
 def get_template_variables(template: str, template_format: str) -> List[str]:
@@ -147,22 +146,6 @@ def get_template_variables(template: str, template_format: str) -> List[str]:
         raise ValueError(f"Unsupported template format: {template_format}")
 
     return sorted(input_variables)
-
-
-class StringPromptValue(PromptValue):
-    """String prompt value."""
-
-    text: str
-    """Prompt text."""
-    type: Literal["StringPromptValue"] = "StringPromptValue"
-
-    def to_string(self) -> str:
-        """Return prompt as string."""
-        return self.text
-
-    def to_messages(self) -> List[BaseMessage]:
-        """Return prompt as messages."""
-        return [HumanMessage(content=self.text)]
 
 
 class StringPromptTemplate(BasePromptTemplate, ABC):
