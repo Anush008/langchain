@@ -117,9 +117,7 @@ def test_qdrant_similarity_search_filters(
             models.FieldCondition(key="metadata.page", match=models.MatchValue(value=1))
         ]
     )
-    output = docsearch.similarity_search(
-        "foo", k=1, filter=qdrant_filter
-    )
+    output = docsearch.similarity_search("foo", k=1, filter=qdrant_filter)
 
     assert_documents_equals(
         actual=output,

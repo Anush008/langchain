@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 import pytest  # type: ignore[import-not-found]
 from langchain_core.documents import Document
+from qdrant_client import models
 
 from langchain_qdrant import Qdrant
 from tests.integration_tests.common import (
@@ -10,7 +11,6 @@ from tests.integration_tests.common import (
     assert_documents_equals,
 )
 from tests.integration_tests.fixtures import qdrant_locations
-from qdrant_client import models
 
 
 @pytest.mark.parametrize("batch_size", [1, 64])
