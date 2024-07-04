@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 import pytest  # type: ignore[import-not-found]
 from langchain_core.documents import Document
+from qdrant_client import models
 
 from langchain_qdrant import Qdrant
 from tests.integration_tests.common import (
@@ -111,8 +112,13 @@ def test_qdrant_similarity_search_filters(
         vector_name=vector_name,
     )
 
+    qdrant_filter = models.Filter(
+        must=[
+            models.FieldCondition(key="metadata.page", match=models.MatchValue(value=1))
+        ]
+    )
     output = docsearch.similarity_search(
-        "foo", k=1, filter={"page": 1, "metadata": {"page": 2, "pages": [3]}}
+        "foo", k=1, filter=qdrant_filter
     )
 
     assert_documents_equals(
@@ -196,12 +202,20 @@ def test_qdrant_similarity_search_with_relevance_score_with_threshold_and_filter
     )
     score_threshold = 0.99  # for almost exact match
     # test negative filter condition
-    negative_filter = {"page": 1, "metadata": {"page": 2, "pages": [3]}}
+    negative_filter = models.Filter(
+        must=[
+            models.FieldCondition(key="metadata.page", match=models.MatchValue(value=1))
+        ]
+    )
     kwargs = {"filter": negative_filter, "score_threshold": score_threshold}
     output = docsearch.similarity_search_with_relevance_scores("foo", k=3, **kwargs)
     assert len(output) == 0
     # test positive filter condition
-    positive_filter = {"page": 0, "metadata": {"page": 1, "pages": [2]}}
+    positive_filter = models.Filter(
+        must=[
+            models.FieldCondition(key="metadata.page", match=models.MatchValue(value=0))
+        ]
+    )
     kwargs = {"filter": positive_filter, "score_threshold": score_threshold}
     output = docsearch.similarity_search_with_relevance_scores("foo", k=3, **kwargs)
     assert len(output) == 1

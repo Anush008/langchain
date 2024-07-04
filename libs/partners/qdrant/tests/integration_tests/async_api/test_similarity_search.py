@@ -10,6 +10,7 @@ from tests.integration_tests.common import (
     assert_documents_equals,
 )
 from tests.integration_tests.fixtures import qdrant_locations
+from qdrant_client import models
 
 
 @pytest.mark.parametrize("batch_size", [1, 64])
@@ -119,9 +120,12 @@ async def test_qdrant_similarity_search_filters(
         location=qdrant_location,
     )
 
-    output = await docsearch.asimilarity_search(
-        "foo", k=1, filter={"page": 1, "metadata": {"page": 2, "pages": [3]}}
+    qdrant_filter = models.Filter(
+        must=[
+            models.FieldCondition(key="metadata.page", match=models.MatchValue(value=1))
+        ]
     )
+    output = await docsearch.asimilarity_search("foo", k=1, filter=qdrant_filter)
     assert_documents_equals(
         output,
         [
@@ -211,12 +215,20 @@ async def test_similarity_search_with_relevance_score_with_threshold_and_filter(
     )
     score_threshold = 0.99  # for almost exact match
     # test negative filter condition
-    negative_filter = {"page": 1, "metadata": {"page": 2, "pages": [3]}}
+    negative_filter = models.Filter(
+        must=[
+            models.FieldCondition(key="metadata.page", match=models.MatchValue(value=1))
+        ]
+    )
     kwargs = {"filter": negative_filter, "score_threshold": score_threshold}
     output = docsearch.similarity_search_with_relevance_scores("foo", k=3, **kwargs)
     assert len(output) == 0
     # test positive filter condition
-    positive_filter = {"page": 0, "metadata": {"page": 1, "pages": [2]}}
+    positive_filter = models.Filter(
+        must=[
+            models.FieldCondition(key="metadata.page", match=models.MatchValue(value=0))
+        ]
+    )
     kwargs = {"filter": positive_filter, "score_threshold": score_threshold}
     output = await docsearch.asimilarity_search_with_relevance_scores(
         "foo", k=3, **kwargs

@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 import os
 import uuid
-import warnings
 from itertools import islice
 from operator import itemgetter
 from typing import (
@@ -11,7 +10,6 @@ from typing import (
     Any,
     AsyncGenerator,
     Callable,
-    Dict,
     Generator,
     Iterable,
     List,
@@ -19,7 +17,6 @@ from typing import (
     Sequence,
     Tuple,
     Type,
-    Union,
 )
 
 import numpy as np
@@ -34,8 +31,7 @@ from qdrant_client.local.async_qdrant_local import AsyncQdrantLocal
 from langchain_qdrant._utils import maximal_marginal_relevance
 
 if TYPE_CHECKING:
-    DictFilter = Dict[str, Union[str, int, bool, dict, list]]
-    MetadataFilter = Union[DictFilter, models.Filter]
+    MetadataFilter = models.Filter
 
 
 class QdrantException(Exception):
@@ -76,7 +72,7 @@ class Qdrant(VectorStore):
 
             client = QdrantClient()
             collection_name = "MyCollection"
-            qdrant = Qdrant(client, collection_name, embedding_function)
+            qdrant = Qdrant(client, collection_name, embeddings)
     """
 
     CONTENT_KEY: str = "page_content"
@@ -87,13 +83,12 @@ class Qdrant(VectorStore):
         self,
         client: Any,
         collection_name: str,
-        embeddings: Optional[Embeddings] = None,
+        embeddings: Embeddings,
         content_payload_key: str = CONTENT_KEY,
         metadata_payload_key: str = METADATA_KEY,
         distance_strategy: str = "COSINE",
         vector_name: Optional[str] = VECTOR_NAME,
         async_client: Optional[Any] = None,
-        embedding_function: Optional[Callable] = None,  # deprecated
     ):
         """Initialize with necessary components."""
         if not isinstance(client, QdrantClient):
@@ -108,19 +103,7 @@ class Qdrant(VectorStore):
                 f"got {type(async_client)}"
             )
 
-        if embeddings is None and embedding_function is None:
-            raise ValueError(
-                "`embeddings` value can't be None. Pass `Embeddings` instance."
-            )
-
-        if embeddings is not None and embedding_function is not None:
-            raise ValueError(
-                "Both `embeddings` and `embedding_function` are passed. "
-                "Use `embeddings` only."
-            )
-
         self._embeddings = embeddings
-        self._embeddings_function = embedding_function
         self.client: QdrantClient = client
         self.async_client: Optional[AsyncQdrantClient] = async_client
         self.collection_name = collection_name
@@ -128,24 +111,10 @@ class Qdrant(VectorStore):
         self.metadata_payload_key = metadata_payload_key or self.METADATA_KEY
         self.vector_name = vector_name or self.VECTOR_NAME
 
-        if embedding_function is not None:
-            warnings.warn(
-                "Using `embedding_function` is deprecated. "
-                "Pass `Embeddings` instance to `embeddings` instead."
-            )
-
-        if not isinstance(embeddings, Embeddings):
-            warnings.warn(
-                "`embeddings` should be an instance of `Embeddings`."
-                "Using `embeddings` as `embedding_function` which is deprecated"
-            )
-            self._embeddings_function = embeddings
-            self._embeddings = None
-
         self.distance_strategy = distance_strategy.upper()
 
     @property
-    def embeddings(self) -> Optional[Embeddings]:
+    def embeddings(self) -> Embeddings:
         return self._embeddings
 
     def add_texts(
@@ -346,7 +315,7 @@ class Qdrant(VectorStore):
             List of documents most similar to the query text and distance for each.
         """
         return self.similarity_search_with_score_by_vector(
-            self._embed_query(query),
+            self.embeddings.embed_query(query),
             k,
             filter=filter,
             search_params=search_params,
@@ -403,7 +372,7 @@ class Qdrant(VectorStore):
         Returns:
             List of documents most similar to the query text and distance for each.
         """
-        query_embedding = await self._aembed_query(query)
+        query_embedding = await self.embeddings.aembed_query(query)
         return await self.asimilarity_search_with_score_by_vector(
             query_embedding,
             k,
@@ -576,16 +545,7 @@ class Qdrant(VectorStore):
         Returns:
             List of documents most similar to the query text and distance for each.
         """
-        if filter is not None and isinstance(filter, dict):
-            warnings.warn(
-                "Using dict as a `filter` is deprecated. Please use qdrant-client "
-                "filters directly: "
-                "https://qdrant.tech/documentation/concepts/filtering/",
-                DeprecationWarning,
-            )
-            qdrant_filter = self._qdrant_filter_from_dict(filter)
-        else:
-            qdrant_filter = filter
+        qdrant_filter = filter
 
         query_vector = embedding
         if self.vector_name is not None:
@@ -671,16 +631,8 @@ class Qdrant(VectorStore):
             raise NotImplementedError(
                 "QdrantLocal cannot interoperate with sync and async clients"
             )
-        if filter is not None and isinstance(filter, dict):
-            warnings.warn(
-                "Using dict as a `filter` is deprecated. Please use qdrant-client "
-                "filters directly: "
-                "https://qdrant.tech/documentation/concepts/filtering/",
-                DeprecationWarning,
-            )
-            qdrant_filter = self._qdrant_filter_from_dict(filter)
-        else:
-            qdrant_filter = filter
+
+        qdrant_filter = filter
 
         query_vector = embedding
         if self.vector_name is not None:
@@ -762,7 +714,7 @@ class Qdrant(VectorStore):
         Returns:
             List of Documents selected by maximal marginal relevance.
         """
-        query_embedding = self._embed_query(query)
+        query_embedding = self.embeddings.embed_query(query)
         return self.max_marginal_relevance_search_by_vector(
             query_embedding,
             k=k,
@@ -827,7 +779,7 @@ class Qdrant(VectorStore):
         Returns:
             List of Documents selected by maximal marginal relevance.
         """
-        query_embedding = await self._aembed_query(query)
+        query_embedding = await self.embeddings.aembed_query(query)
         return await self.amax_marginal_relevance_search_by_vector(
             query_embedding,
             k=k,
@@ -1992,136 +1944,6 @@ class Qdrant(VectorStore):
             metadata=metadata,
         )
 
-    def _build_condition(self, key: str, value: Any) -> List[models.FieldCondition]:
-        out = []
-
-        if isinstance(value, dict):
-            for _key, value in value.items():
-                out.extend(self._build_condition(f"{key}.{_key}", value))
-        elif isinstance(value, list):
-            for _value in value:
-                if isinstance(_value, dict):
-                    out.extend(self._build_condition(f"{key}[]", _value))
-                else:
-                    out.extend(self._build_condition(f"{key}", _value))
-        else:
-            out.append(
-                models.FieldCondition(
-                    key=f"{self.metadata_payload_key}.{key}",
-                    match=models.MatchValue(value=value),
-                )
-            )
-
-        return out
-
-    def _qdrant_filter_from_dict(
-        self, filter: Optional[DictFilter]
-    ) -> Optional[models.Filter]:
-        if not filter:
-            return None
-
-        return models.Filter(
-            must=[
-                condition
-                for key, value in filter.items()
-                for condition in self._build_condition(key, value)
-            ]
-        )
-
-    def _embed_query(self, query: str) -> List[float]:
-        """Embed query text.
-
-        Used to provide backward compatibility with `embedding_function` argument.
-
-        Args:
-            query: Query text.
-
-        Returns:
-            List of floats representing the query embedding.
-        """
-        if self.embeddings is not None:
-            embedding = self.embeddings.embed_query(query)
-        else:
-            if self._embeddings_function is not None:
-                embedding = self._embeddings_function(query)
-            else:
-                raise ValueError("Neither of embeddings or embedding_function is set")
-        return embedding.tolist() if hasattr(embedding, "tolist") else embedding
-
-    async def _aembed_query(self, query: str) -> List[float]:
-        """Embed query text asynchronously.
-
-        Used to provide backward compatibility with `embedding_function` argument.
-
-        Args:
-            query: Query text.
-
-        Returns:
-            List of floats representing the query embedding.
-        """
-        if self.embeddings is not None:
-            embedding = await self.embeddings.aembed_query(query)
-        else:
-            if self._embeddings_function is not None:
-                embedding = self._embeddings_function(query)
-            else:
-                raise ValueError("Neither of embeddings or embedding_function is set")
-        return embedding.tolist() if hasattr(embedding, "tolist") else embedding
-
-    def _embed_texts(self, texts: Iterable[str]) -> List[List[float]]:
-        """Embed search texts.
-
-        Used to provide backward compatibility with `embedding_function` argument.
-
-        Args:
-            texts: Iterable of texts to embed.
-
-        Returns:
-            List of floats representing the texts embedding.
-        """
-        if self.embeddings is not None:
-            embeddings = self.embeddings.embed_documents(list(texts))
-            if hasattr(embeddings, "tolist"):
-                embeddings = embeddings.tolist()
-        elif self._embeddings_function is not None:
-            embeddings = []
-            for text in texts:
-                embedding = self._embeddings_function(text)
-                if hasattr(embeddings, "tolist"):
-                    embedding = embedding.tolist()
-                embeddings.append(embedding)
-        else:
-            raise ValueError("Neither of embeddings or embedding_function is set")
-
-        return embeddings
-
-    async def _aembed_texts(self, texts: Iterable[str]) -> List[List[float]]:
-        """Embed search texts.
-
-        Used to provide backward compatibility with `embedding_function` argument.
-
-        Args:
-            texts: Iterable of texts to embed.
-
-        Returns:
-            List of floats representing the texts embedding.
-        """
-        if self.embeddings is not None:
-            embeddings = await self.embeddings.aembed_documents(list(texts))
-            if hasattr(embeddings, "tolist"):
-                embeddings = embeddings.tolist()
-        elif self._embeddings_function is not None:
-            embeddings = []
-            for text in texts:
-                embedding = self._embeddings_function(text)
-                if hasattr(embeddings, "tolist"):
-                    embedding = embedding.tolist()
-                embeddings.append(embedding)
-        else:
-            raise ValueError("Neither of embeddings or embedding_function is set")
-
-        return embeddings
-
     def _generate_rest_batches(
         self,
         texts: Iterable[str],
@@ -2138,7 +1960,7 @@ class Qdrant(VectorStore):
             batch_ids = list(islice(ids_iterator, batch_size))
 
             # Generate the embeddings for all the texts in a batch
-            batch_embeddings = self._embed_texts(batch_texts)
+            batch_embeddings = self.embeddings.embed_documents(batch_texts)
 
             points = [
                 models.PointStruct(
@@ -2178,7 +2000,7 @@ class Qdrant(VectorStore):
             batch_ids = list(islice(ids_iterator, batch_size))
 
             # Generate the embeddings for all the texts in a batch
-            batch_embeddings = await self._aembed_texts(batch_texts)
+            batch_embeddings = await self.embeddings.aembed_documents(batch_texts)
 
             points = [
                 models.PointStruct(
