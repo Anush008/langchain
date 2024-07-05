@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Sequence
 
 from langchain_qdrant.sparse_embeddings import SparseEmbeddings, SparseVector
 
@@ -12,6 +12,7 @@ class FastEmbedSparse(SparseEmbeddings):
         batch_size: int = 256,
         cache_dir: Optional[str] = None,
         threads: Optional[int] = None,
+        providers: Optional[Sequence[Any]] = None,
         parallel: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
@@ -21,11 +22,12 @@ class FastEmbedSparse(SparseEmbeddings):
 
         Args:
             model_name (str): The name of the model to use. Defaults to `"Qdrant/bm42-all-minilm-l6-v2-attentions"`.
-            batch_size (int): Batch size for encoding. Higher values will use more memory, but be faster.\
+            batch_size (int): Batch size for encoding. Higher values will use more memory, but will be faster.\
                                         Defaults to 256.
             cache_dir (str, optional): The path to the model cache directory.\
                                        Can also be set using the `FASTEMBED_CACHE_PATH` env variable.
             threads (int, optional): The number of threads single onnxruntime session can use.
+            providers (Sequence[Any], optional): A list of ONNX execution providers to use.\
             parallel (int, optional): If `>1`, data-parallel encoding will be used, recommended for offline encoding of large datasets.\
                                       If `0`, use all available cores.\
                                       If `None`, don't use data-parallel processing, use default onnxruntime threading instead.\
@@ -38,12 +40,18 @@ class FastEmbedSparse(SparseEmbeddings):
             from fastembed import SparseTextEmbedding
         except ImportError:
             raise ValueError(
-                "The 'fastembed' package is not installed. Please install it with `pip install fastembed`"
+                "The 'fastembed' package is not installed. "
+                "Please install it with "
+                "`pip install fastembed` or `pip install fastembed-gpu`."
             )
         self._batch_size = batch_size
         self._parallel = parallel
         self._model = SparseTextEmbedding(
-            model_name=model_name, cache_dir=cache_dir, threads=threads, **kwargs
+            model_name=model_name,
+            cache_dir=cache_dir,
+            threads=threads,
+            providers=providers,
+            **kwargs,
         )
 
     def embed_documents(self, texts: List[str]) -> List[SparseVector]:
