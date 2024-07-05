@@ -11,8 +11,8 @@ readme = "README.md"
 repository = "https://github.com/langchain-ai/langchain"
 license = "MIT"
 
-[tool.ruff]
-select = [ "E", "F", "I",]
+# [tool.ruff]
+# select = [ "E", "F", "I",]
 
 [tool.mypy]
 disallow_untyped_defs = true
