@@ -65,7 +65,7 @@ def sync_call_fallback(method: Callable) -> Callable:
 
     return wrapper
 
-@deprecated(since="0.2.0", alternative="QdrantVectorStore")
+@deprecated(since="0.2.0", alternative="QdrantVectorStore", removal="0.4.0")
 class Qdrant(VectorStore):
     """`Qdrant` vector store.
 
