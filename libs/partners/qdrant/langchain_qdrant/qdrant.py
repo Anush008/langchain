@@ -349,7 +349,7 @@ class QdrantVectorStore(VectorStore):
             raise ValueError(f"Invalid retrieval mode. {self.retrieval_mode}.")
         return [
             (
-                self._document_from_scored_point(
+                self._document_from_point(
                     result,
                     self.collection_name,
                     self.content_payload_key,
@@ -396,7 +396,7 @@ class QdrantVectorStore(VectorStore):
         ).points
 
         return [
-            self._document_from_scored_point(
+            self._document_from_point(
                 result,
                 self.collection_name,
                 self.content_payload_key,
@@ -500,7 +500,7 @@ class QdrantVectorStore(VectorStore):
         )
         return [
             (
-                self._document_from_scored_point(
+                self._document_from_point(
                     results[i],
                     self.collection_name,
                     self.content_payload_key,
@@ -519,6 +519,19 @@ class QdrantVectorStore(VectorStore):
             points_selector=ids,
         )
         return result.status == models.UpdateStatus.COMPLETED
+
+    def get_by_ids(self, ids: Sequence[str | int], /) -> List[Document]:
+        results = self.client.retrieve(self.collection_name, ids, with_payload=True)
+
+        return [
+            self._document_from_point(
+                result,
+                self.collection_name,
+                self.content_payload_key,
+                self.metadata_payload_key,
+            )
+            for result in results
+        ]
 
     @classmethod
     def construct_instance(
@@ -649,7 +662,7 @@ class QdrantVectorStore(VectorStore):
             )
 
     @classmethod
-    def _document_from_scored_point(
+    def _document_from_point(
         cls,
         scored_point: Any,
         collection_name: str,
