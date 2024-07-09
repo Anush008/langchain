@@ -1,7 +1,8 @@
 import pytest
 from langchain_core.documents import Document
-from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from qdrant_client import models
+
+from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,

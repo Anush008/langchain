@@ -3,6 +3,7 @@ from typing import List
 import requests  # type: ignore
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
+
 from langchain_qdrant import SparseEmbeddings, SparseVector
 
 
@@ -59,7 +60,8 @@ class ConsistentFakeEmbeddings(Embeddings):
 
 
 class ConsistentFakeSparseEmbeddings(SparseEmbeddings):
-    """Fake sparse embeddings which remember all the texts seen so far to return consistent vectors for the same texts."""
+    """Fake sparse embeddings which remembers all the texts seen so far "
+    "to return consistent vectors for the same texts."""
 
     def __init__(self, dimensionality: int = 25) -> None:
         self.known_texts: List[str] = []
@@ -79,5 +81,6 @@ class ConsistentFakeSparseEmbeddings(SparseEmbeddings):
         return out_vectors
 
     def embed_query(self, text: str) -> SparseVector:
-        """Return consistent embeddings for the text, if seen before, or a constant one if the text is unknown."""
+        """Return consistent embeddings for the text, "
+        "if seen before, or a constant one if the text is unknown."""
         return self.embed_documents([text])[0]

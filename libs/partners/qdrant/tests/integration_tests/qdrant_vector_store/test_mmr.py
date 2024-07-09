@@ -1,8 +1,9 @@
 import pytest  # type: ignore[import-not-found]
 from langchain_core.documents import Document
+from qdrant_client import models
+
 from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from langchain_qdrant.qdrant import QdrantVectorStoreError
-from qdrant_client import models
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,

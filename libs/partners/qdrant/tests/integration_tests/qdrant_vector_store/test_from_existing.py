@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+
 from langchain_qdrant.qdrant import QdrantVectorStore, RetrievalMode
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
@@ -21,7 +22,7 @@ def test_qdrant_from_existing_collection_uses_same_collection(
     retrieval_mode: RetrievalMode,
     sparse_vector_name: str,
 ) -> None:
-    """Test if the QdrantVectorStore.from_existing_collection reuses the same collection."""
+    """Test if the QdrantVectorStore.from_existing_collection reuses the collection."""
 
     collection_name = uuid.uuid4().hex
     docs = ["foo"]

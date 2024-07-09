@@ -3,9 +3,10 @@ from typing import List
 
 import pytest
 from langchain_core.documents import Document
+from qdrant_client import models
+
 from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from langchain_qdrant.qdrant import QdrantVectorStoreError
-from qdrant_client import models
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,
@@ -182,7 +183,8 @@ def test_qdrant_from_texts_raises_error_on_different_dimensionality(
             sparse_embedding=ConsistentFakeSparseEmbeddings(),
         )
 
-        expected_message = "collection is configured for dense vectors with 10 dimensions. Selected embeddings are 5-dimensional"
+        expected_message = "collection is configured for dense vectors "
+        "with 10 dimensions. Selected embeddings are 5-dimensional"
         assert expected_message in str(excinfo.value)
 
 

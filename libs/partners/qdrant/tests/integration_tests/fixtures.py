@@ -3,7 +3,6 @@ import os
 from typing import List
 
 from langchain_qdrant.qdrant import RetrievalMode
-
 from tests.integration_tests.common import qdrant_running_locally
 
 logger = logging.getLogger(__name__)
