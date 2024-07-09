@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
-
 from langchain_qdrant import FastEmbedSparse
 
 pytest.importorskip("fastembed", reason="'fastembed' package is not installed")
+
 
 @pytest.mark.parametrize(
     "model_name", ["Qdrant/bm25", "Qdrant/bm42-all-minilm-l6-v2-attentions"]

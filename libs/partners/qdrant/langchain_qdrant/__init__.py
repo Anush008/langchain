@@ -9,5 +9,5 @@ __all__ = [
     "SparseEmbeddings",
     "SparseVector",
     "FastEmbedSparse",
-    "RetrievalMode"
+    "RetrievalMode",
 ]

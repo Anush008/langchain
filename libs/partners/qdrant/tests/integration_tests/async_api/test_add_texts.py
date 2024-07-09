@@ -3,8 +3,8 @@ import uuid
 from typing import Optional
 
 import pytest  # type: ignore[import-not-found]
-
 from langchain_qdrant import Qdrant
+
 from tests.integration_tests.common import ConsistentFakeEmbeddings
 from tests.integration_tests.fixtures import qdrant_locations
 
