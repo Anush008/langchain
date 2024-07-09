@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-
 from langchain_qdrant.qdrant import QdrantVectorStore, RetrievalMode
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,

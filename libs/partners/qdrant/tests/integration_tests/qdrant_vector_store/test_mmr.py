@@ -1,15 +1,15 @@
 import pytest  # type: ignore[import-not-found]
 from langchain_core.documents import Document
-
 from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from langchain_qdrant.qdrant import QdrantVectorStoreError
+from qdrant_client import models
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,
     assert_documents_equals,
 )
 from tests.integration_tests.fixtures import qdrant_locations, retrieval_modes
-from qdrant_client import models
+
 
 # MMR is supported when dense embeddings are available
 # i.e. In Dense and Hybrid retrieval modes
@@ -74,7 +74,8 @@ def test_qdrant_mmr_search(
         [Document(page_content="baz", metadata={"page": 2})],
     )
 
-# MMR shouldn't work with only sparse embeddings
+
+# MMR shouldn't work with only sparse retrieval mode
 @pytest.mark.parametrize("location", qdrant_locations())
 @pytest.mark.parametrize(
     "content_payload_key", [QdrantVectorStore.CONTENT_KEY, "test_content"]
@@ -96,7 +97,7 @@ def test_invalid_qdrant_mmr_with_sparse(
     metadatas = [{"page": i} for i in range(len(texts))]
     docsearch = QdrantVectorStore.from_texts(
         texts,
-        None,
+        ConsistentFakeEmbeddings(),
         metadatas=metadatas,
         content_payload_key=content_payload_key,
         metadata_payload_key=metadata_payload_key,

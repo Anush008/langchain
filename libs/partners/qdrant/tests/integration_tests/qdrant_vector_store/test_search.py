@@ -1,10 +1,7 @@
-from typing import Optional
-
 import pytest
-from qdrant_client import models
 from langchain_core.documents import Document
-
 from langchain_qdrant import QdrantVectorStore, RetrievalMode
+from qdrant_client import models
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,
@@ -146,7 +143,7 @@ def test_similarity_relevance_search_no_threshold(
 @pytest.mark.parametrize("vector_name", ["", "my-vector"])
 def test_relevance_search_with_threshold(
     location: str,
-    vector_name: Optional[str],
+    vector_name: str,
 ) -> None:
     """Test end to end construction and search."""
     texts = ["foo", "bar", "baz"]

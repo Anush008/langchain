@@ -1,10 +1,11 @@
 import uuid
+from typing import List
 
 import pytest
 from langchain_core.documents import Document
-from qdrant_client import models
 from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from langchain_qdrant.qdrant import QdrantVectorStoreError
+from qdrant_client import models
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,
@@ -47,7 +48,7 @@ def test_qdrant_from_texts_stores_ids(
 ) -> None:
     """Test end to end Qdrant.from_texts stores provided ids."""
     collection_name = uuid.uuid4().hex
-    ids = [
+    ids: List[str | int] = [
         "fa38d572-4c31-4579-aedc-1960d79df6df",
         786,
     ]
@@ -98,12 +99,12 @@ def test_qdrant_from_texts_stores_embeddings_as_named_vectors(
     assert 5 == vec_store.client.count(collection_name).count
     if retrieval_mode in retrieval_modes(sparse=False):
         assert all(
-            (vector_name in point.vector or isinstance(point.vector, list))
+            (vector_name in point.vector or isinstance(point.vector, list))  # type: ignore
             for point in vec_store.client.scroll(collection_name, with_vectors=True)[0]
         )
     if retrieval_mode in retrieval_modes(dense=False):
         assert all(
-            sparse_vector_name in point.vector
+            sparse_vector_name in point.vector  # type: ignore
             for point in vec_store.client.scroll(collection_name, with_vectors=True)[0]
         )
 
@@ -377,6 +378,6 @@ def test_from_texts_passed_optimizers_config_and_on_disk_payload(
     )
 
     collection_info = vec_store.client.get_collection(collection_name)
-    assert collection_info.config.params.vectors[vector_name].on_disk is True
+    assert collection_info.config.params.vectors[vector_name].on_disk is True  # type: ignore
     assert collection_info.config.optimizer_config.memmap_threshold == 1000
     assert collection_info.config.params.on_disk_payload is True

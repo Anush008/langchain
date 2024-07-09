@@ -1,10 +1,10 @@
 import uuid
+from typing import List
 
 import pytest
-from qdrant_client import QdrantClient, models
 from langchain_core.documents import Document
-
 from langchain_qdrant import QdrantVectorStore, RetrievalMode
+from qdrant_client import QdrantClient, models
 from tests.integration_tests.common import (
     ConsistentFakeEmbeddings,
     ConsistentFakeSparseEmbeddings,
@@ -117,7 +117,7 @@ def test_qdrant_add_texts_stores_ids(
     batch_size: int,
 ) -> None:
     """Test end to end Qdrant.add_texts stores provided ids."""
-    ids = [
+    ids: List[str | int] = [
         "fa38d572-4c31-4579-aedc-1960d79df6df",
         432,
         432145435,
