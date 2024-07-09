@@ -2,8 +2,8 @@ import tempfile
 import uuid
 
 import pytest  # type: ignore[import-not-found]
-from langchain_qdrant import Qdrant
 
+from langchain_qdrant import Qdrant
 from tests.integration_tests.common import ConsistentFakeEmbeddings
 
 
