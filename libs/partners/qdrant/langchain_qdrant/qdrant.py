@@ -68,6 +68,18 @@ class QdrantVectorStore(VectorStore):
         validate_embeddings: bool = True,
         validate_collection_config: bool = True,
     ):
+        """Initialize a new instance of `QdrantVectorStore`.
+
+        Example:
+        .. code-block:: python
+        qdrant = Qdrant(
+            client=client,
+            collection_name="my-collection",
+            embedding=OpenAIEmbeddings(),
+            retrieval_mode=RetrievalMode.HYBRID,
+            sparse_embedding=FastEmbedSparse(),
+        )
+        """
         if validate_embeddings:
             self._validate_embeddings(retrieval_mode, embedding, sparse_embedding)
 
@@ -95,21 +107,43 @@ class QdrantVectorStore(VectorStore):
 
     @property
     def client(self) -> QdrantClient:
+        """Get the Qdrant client instance that is being used.
+
+        Returns:
+            QdrantClient: An instance of `QdrantClient`.
+        """
         return self._client
 
     @property
     def embeddings(self) -> Embeddings:
+        """Get the dense embeddings instance that is being used.
+
+        Raises:
+            ValueError: If embeddings are `None`.
+
+        Returns:
+            Embeddings: An instance of `Embeddings`.
+        """
         if self._embeddings is None:
             raise ValueError(
-                "Embeddings are not set. Please set embeddings using the `embedding` parameter."
+                "Embeddings are `None`. Please set using the `embedding` parameter."
             )
         return self._embeddings
 
     @property
     def sparse_embeddings(self) -> SparseEmbeddings:
+        """Get the sparse embeddings instance that is being used.
+
+        Raises:
+            ValueError: If sparse embeddings are `None`.
+
+        Returns:
+            SparseEmbeddings: An instance of `SparseEmbeddings`.
+        """
         if self._sparse_embeddings is None:
             raise ValueError(
-                "Sparse embeddings are not set. Please set sparse embeddings using the `sparse_embedding` parameter."
+                "Sparse embeddings are `None`. "
+                "Please set using the `sparse_embedding` parameter."
             )
         return self._sparse_embeddings
 
@@ -148,6 +182,23 @@ class QdrantVectorStore(VectorStore):
         validate_collection_config: bool = True,
         **kwargs: Any,
     ) -> QdrantVectorStore:
+        """Construct an instance of `QdrantVectorStore` from a list of texts.
+
+        This is a user-friendly interface that:
+        1. Creates embeddings, one for each text
+        2. Creates a Qdrant collection if it doesn't exist.
+        3. Adds the text embeddings to the Qdrant database
+
+        This is intended to be a quick way to get started.
+
+        Example:
+            .. code-block:: python
+
+            from langchain_qdrant import Qdrant
+            from langchain_openai import OpenAIEmbeddings
+            embeddings = OpenAIEmbeddings()
+            qdrant = Qdrant.from_texts(texts, embeddings, url="http://localhost:6333")
+        """
         client_options = {
             "location": location,
             "url": url,
@@ -211,6 +262,12 @@ class QdrantVectorStore(VectorStore):
         validate_collection_config: bool = True,
         **kwargs: Any,
     ) -> QdrantVectorStore:
+        """Construct an instance of `QdrantVectorStore` from an existing collection
+        without adding any data.
+
+        Returns:
+            QdrantVectorStore: A new instance of `QdrantVectorStore`.
+        """
         client = QdrantClient(
             location=location,
             url=url,
@@ -249,6 +306,11 @@ class QdrantVectorStore(VectorStore):
         batch_size: int = 64,
         **kwargs: Any,
     ) -> List[str | int]:
+        """Add texts with embeddings to the vectorstore.
+
+        Returns:
+            List of ids from adding the texts into the vectorstore.
+        """
         added_ids = []
         for batch_ids, points in self._generate_batches(
             texts, metadatas, ids, batch_size
@@ -272,6 +334,11 @@ class QdrantVectorStore(VectorStore):
         hybrid_fusion: Optional[models.FusionQuery] = None,
         **kwargs: Any,
     ) -> List[Document]:
+        """Return docs most similar to query.
+
+        Returns:
+            List of Documents most similar to the query.
+        """
         results = self.similarity_search_with_score(
             query,
             k,
@@ -297,6 +364,11 @@ class QdrantVectorStore(VectorStore):
         hybrid_fusion: Optional[models.FusionQuery] = None,
         **kwargs: Any,
     ) -> List[Tuple[Document, float]]:
+        """Return docs most similar to query.
+
+        Returns:
+            List of documents most similar to the query text and distance for each.
+        """
         query_options = {
             "collection_name": self.collection_name,
             "query_filter": filter,
@@ -381,6 +453,11 @@ class QdrantVectorStore(VectorStore):
         consistency: Optional[models.ReadConsistency] = None,
         **kwargs: Any,
     ) -> List[Document]:
+        """Return docs most similar to embedding vector.
+
+        Returns:
+            List of Documents most similar to the query.
+        """
         qdrant_filter = filter
 
         self._validate_collection_for_dense(
@@ -427,6 +504,15 @@ class QdrantVectorStore(VectorStore):
         consistency: Optional[models.ReadConsistency] = None,
         **kwargs: Any,
     ) -> List[Document]:
+        """Return docs selected using the maximal marginal relevance with dense vectors.
+
+        Maximal marginal relevance optimizes for similarity to query AND diversity
+        among selected documents.
+
+
+        Returns:
+            List of Documents selected by maximal marginal relevance.
+        """
         self._validate_collection_for_dense(
             self.client,
             self.collection_name,
@@ -460,6 +546,14 @@ class QdrantVectorStore(VectorStore):
         consistency: Optional[models.ReadConsistency] = None,
         **kwargs: Any,
     ) -> List[Document]:
+        """Return docs selected using the maximal marginal relevance with dense vectors.
+
+        Maximal marginal relevance optimizes for similarity to query AND diversity
+        among selected documents.
+
+        Returns:
+            List of Documents selected by maximal marginal relevance.
+        """
         results = self.max_marginal_relevance_search_with_score_by_vector(
             embedding,
             k=k,
@@ -485,6 +579,14 @@ class QdrantVectorStore(VectorStore):
         consistency: Optional[models.ReadConsistency] = None,
         **kwargs: Any,
     ) -> List[Tuple[Document, float]]:
+        """Return docs selected using the maximal marginal relevance.
+        Maximal marginal relevance optimizes for similarity to query AND diversity
+        among selected documents.
+
+        Returns:
+            List of Documents selected by maximal marginal relevance and distance for
+            each.
+        """
         results = self.client.query_points(
             collection_name=self.collection_name,
             query=embedding,
@@ -526,6 +628,15 @@ class QdrantVectorStore(VectorStore):
         ids: Optional[List[str | int]] = None,
         **kwargs: Any,
     ) -> Optional[bool]:
+        """Delete documents by their ids.
+
+        Args:
+            ids: List of ids to delete.
+            **kwargs: Other keyword arguments that subclasses might use.
+
+        Returns:
+            True if deletion is successful, False otherwise.
+        """
         result = self.client.delete(
             collection_name=self.collection_name,
             points_selector=ids,
@@ -670,7 +781,7 @@ class QdrantVectorStore(VectorStore):
             return self._euclidean_relevance_score_fn
         else:
             raise ValueError(
-                "Unknown distance strategy, must be COSINE, " "DOT, EUCLID OR L1."
+                "Unknown distance strategy, must be COSINE, DOT, or EUCLID."
             )
 
     @classmethod
@@ -840,12 +951,15 @@ class QdrantVectorStore(VectorStore):
         vector_config = collection_info.config.params.vectors
 
         if isinstance(vector_config, models.VectorParams) and vector_name != "":
-            # qdrant-client returns a single VectorParams object in case of a single unnamed vector
+            # For single/unnamed vector,
+            # qdrant-client returns a single VectorParams object
 
             raise QdrantVectorStoreError(
-                f"Existing Qdrant collection {collection_name} is built with unnamed dense vector. "
-                f"If you want to reuse it, please set `vector_name` to ''(empty string)."
-                f"If you want to recreate the collection, set `force_recreate` to `True`."
+                f"Existing Qdrant collection {collection_name} is built "
+                "with unnamed dense vector. "
+                f"If you want to reuse it, set `vector_name` to ''(empty string)."
+                f"If you want to recreate the collection, "
+                "set `force_recreate` to `True`."
             )
 
         else:
@@ -853,7 +967,8 @@ class QdrantVectorStore(VectorStore):
             if isinstance(vector_config, dict) and vector_name not in vector_config:
                 raise QdrantVectorStoreError(
                     f"Existing Qdrant collection {collection_name} does not "
-                    f"contain dense vector named {vector_name}. Did you mean one of the "
+                    f"contain dense vector named {vector_name}. "
+                    "Did you mean one of the "
                     f"existing vectors: {', '.join(vector_config.keys())}? "  # type: ignore
                     f"If you want to recreate the collection, set `force_recreate` "
                     f"parameter to `True`."
@@ -930,5 +1045,6 @@ class QdrantVectorStore(VectorStore):
             [embedding is None, sparse_embedding is None]
         ):
             raise ValueError(
-                "Both 'embedding' and 'sparse_embedding' cannot be None when retrieval mode is 'hybrid'"
+                "Both 'embedding' and 'sparse_embedding' cannot be None "
+                "when retrieval mode is 'hybrid'"
             )
