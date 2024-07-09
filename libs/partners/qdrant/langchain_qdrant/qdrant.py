@@ -101,7 +101,7 @@ class QdrantVectorStore(VectorStore):
     def embeddings(self) -> Embeddings:
         if self._embeddings is None:
             raise ValueError(
-                "Embeddings are not set. Please set embeddings using the `embedding` parameter."
+                "Embeddings are `None`. Please set using the `embedding` parameter."
             )
         return self._embeddings
 
@@ -109,7 +109,8 @@ class QdrantVectorStore(VectorStore):
     def sparse_embeddings(self) -> SparseEmbeddings:
         if self._sparse_embeddings is None:
             raise ValueError(
-                "Sparse embeddings are not set. Please set sparse embeddings using the `sparse_embedding` parameter."
+                "Sparse embeddings are `None`. "
+                "Please set using the `sparse_embedding` parameter."
             )
         return self._sparse_embeddings
 
@@ -840,12 +841,15 @@ class QdrantVectorStore(VectorStore):
         vector_config = collection_info.config.params.vectors
 
         if isinstance(vector_config, models.VectorParams) and vector_name != "":
-            # qdrant-client returns a single VectorParams object in case of a single unnamed vector
+            # For single/unnamed vector,
+            # qdrant-client returns a single VectorParams object
 
             raise QdrantVectorStoreError(
-                f"Existing Qdrant collection {collection_name} is built with unnamed dense vector. "
-                f"If you want to reuse it, please set `vector_name` to ''(empty string)."
-                f"If you want to recreate the collection, set `force_recreate` to `True`."
+                f"Existing Qdrant collection {collection_name} is built "
+                "with unnamed dense vector. "
+                f"If you want to reuse it, set `vector_name` to ''(empty string)."
+                f"If you want to recreate the collection, "
+                "set `force_recreate` to `True`."
             )
 
         else:
@@ -853,7 +857,8 @@ class QdrantVectorStore(VectorStore):
             if isinstance(vector_config, dict) and vector_name not in vector_config:
                 raise QdrantVectorStoreError(
                     f"Existing Qdrant collection {collection_name} does not "
-                    f"contain dense vector named {vector_name}. Did you mean one of the "
+                    f"contain dense vector named {vector_name}. "
+                    "Did you mean one of the "
                     f"existing vectors: {', '.join(vector_config.keys())}? "  # type: ignore
                     f"If you want to recreate the collection, set `force_recreate` "
                     f"parameter to `True`."
@@ -930,5 +935,6 @@ class QdrantVectorStore(VectorStore):
             [embedding is None, sparse_embedding is None]
         ):
             raise ValueError(
-                "Both 'embedding' and 'sparse_embedding' cannot be None when retrieval mode is 'hybrid'"
+                "Both 'embedding' and 'sparse_embedding' cannot be None "
+                "when retrieval mode is 'hybrid'"
             )
