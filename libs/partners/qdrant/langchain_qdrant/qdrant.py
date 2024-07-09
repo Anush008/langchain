@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Generator,
     Iterable,
     List,
     Optional,
@@ -98,10 +99,18 @@ class QdrantVectorStore(VectorStore):
 
     @property
     def embeddings(self) -> Embeddings:
+        if self._embeddings is None:
+            raise ValueError(
+                "Embeddings are not set. Please set embeddings using the `embedding` parameter."
+            )
         return self._embeddings
 
     @property
     def sparse_embeddings(self) -> SparseEmbeddings:
+        if self._sparse_embeddings is None:
+            raise ValueError(
+                "Sparse embeddings are not set. Please set sparse embeddings using the `sparse_embedding` parameter."
+            )
         return self._sparse_embeddings
 
     @classmethod
@@ -232,7 +241,7 @@ class QdrantVectorStore(VectorStore):
             validate_collection_config=validate_collection_config,
         )
 
-    def add_texts(
+    def add_texts(  # type: ignore
         self,
         texts: Iterable[str],
         metadatas: Optional[List[dict]] = None,
@@ -301,18 +310,19 @@ class QdrantVectorStore(VectorStore):
             **kwargs,
         }
         if self.retrieval_mode == RetrievalMode.DENSE:
-            query_embedding = self.embeddings.embed_query(query)
+            query_dense_embedding = self.embeddings.embed_query(query)
             results = self.client.query_points(
-                query=query_embedding,
+                query=query_dense_embedding,
                 using=self.vector_name,
                 **query_options,
             ).points
 
         elif self.retrieval_mode == RetrievalMode.SPARSE:
-            query_embedding = self.sparse_embeddings.embed_query(query)
+            query_sparse_embedding = self.sparse_embeddings.embed_query(query)
             results = self.client.query_points(
                 query=models.SparseVector(
-                    indices=query_embedding.indices, values=query_embedding.values
+                    indices=query_sparse_embedding.indices,
+                    values=query_sparse_embedding.values,
                 ),
                 using=self.sparse_vector_name,
                 **query_options,
@@ -492,7 +502,7 @@ class QdrantVectorStore(VectorStore):
         embeddings = [
             result.vector
             if isinstance(result.vector, list)
-            else result.vector.get(self.vector_name)
+            else result.vector.get(self.vector_name)  # type: ignore
             for result in results
         ]
         mmr_selected = maximal_marginal_relevance(
@@ -511,8 +521,10 @@ class QdrantVectorStore(VectorStore):
             for i in mmr_selected
         ]
 
-    def delete(
-        self, ids: Optional[List[str | int]] = None, **kwargs: Any
+    def delete(  # type: ignore
+        self,
+        ids: Optional[List[str | int]] = None,
+        **kwargs: Any,
     ) -> Optional[bool]:
         result = self.client.delete(
             collection_name=self.collection_name,
@@ -536,7 +548,7 @@ class QdrantVectorStore(VectorStore):
     @classmethod
     def construct_instance(
         cls: Type[QdrantVectorStore],
-        embedding: Embeddings,
+        embedding: Optional[Embeddings] = None,
         retrieval_mode: RetrievalMode = RetrievalMode.DENSE,
         sparse_embedding: Optional[SparseEmbeddings] = None,
         client_options: Dict[str, Any] = {},
@@ -577,7 +589,7 @@ class QdrantVectorStore(VectorStore):
         else:
             vectors_config, sparse_vectors_config = {}, {}
             if retrieval_mode == RetrievalMode.DENSE:
-                partial_embeddings = embedding.embed_documents(["dummy_text"])
+                partial_embeddings = embedding.embed_documents(["dummy_text"])  # type: ignore
 
                 vector_params["size"] = len(partial_embeddings[0])
                 vector_params["distance"] = distance
@@ -596,7 +608,7 @@ class QdrantVectorStore(VectorStore):
                 }
 
             elif retrieval_mode == RetrievalMode.HYBRID:
-                partial_embeddings = embedding.embed_documents(["dummy_text"])
+                partial_embeddings = embedding.embed_documents(["dummy_text"])  # type: ignore
 
                 vector_params["size"] = len(partial_embeddings[0])
                 vector_params["distance"] = distance
@@ -683,7 +695,7 @@ class QdrantVectorStore(VectorStore):
         metadatas: Optional[List[dict]] = None,
         ids: Optional[Sequence[str | int]] = None,
         batch_size: int = 64,
-    ):
+    ) -> Generator[tuple[list[str | int], list[models.PointStruct]], Any, None]:
         texts_iterator = iter(texts)
         metadatas_iterator = iter(metadatas or [])
         ids_iterator = iter(ids or [uuid.uuid4().hex for _ in iter(texts)])
@@ -740,7 +752,7 @@ class QdrantVectorStore(VectorStore):
         texts: Iterable[str],
     ) -> List[models.VectorStruct]:
         if self.retrieval_mode == RetrievalMode.DENSE:
-            batch_embeddings = self.embeddings.embed_documents(texts)
+            batch_embeddings = self.embeddings.embed_documents(list(texts))
             return [
                 {
                     self.vector_name: vector,
@@ -749,19 +761,21 @@ class QdrantVectorStore(VectorStore):
             ]
 
         elif self.retrieval_mode == RetrievalMode.SPARSE:
-            batch_embeddings = self.sparse_embeddings.embed_documents(texts)
+            batch_sparse_embeddings = self.sparse_embeddings.embed_documents(
+                list(texts)
+            )
             return [
                 {
                     self.sparse_vector_name: models.SparseVector(
                         values=vector.values, indices=vector.indices
                     )
                 }
-                for vector in batch_embeddings
+                for vector in batch_sparse_embeddings
             ]
 
         elif self.retrieval_mode == RetrievalMode.HYBRID:
-            dense_embeddings = self.embeddings.embed_documents(texts)
-            sparse_embeddings = self.sparse_embeddings.embed_documents(texts)
+            dense_embeddings = self.embeddings.embed_documents(list(texts))
+            sparse_embeddings = self.sparse_embeddings.embed_documents(list(texts))
 
             assert len(dense_embeddings) == len(
                 sparse_embeddings
@@ -792,9 +806,9 @@ class QdrantVectorStore(VectorStore):
         retrieval_mode: RetrievalMode,
         vector_name: str,
         sparse_vector_name: str,
-        distance: models.Distanc,
+        distance: models.Distance,
         embedding: Optional[Embeddings],
-    ):
+    ) -> None:
         if retrieval_mode == RetrievalMode.DENSE:
             cls._validate_collection_for_dense(
                 client, collection_name, vector_name, distance, embedding
@@ -820,8 +834,8 @@ class QdrantVectorStore(VectorStore):
         collection_name: str,
         vector_name: str,
         distance: models.Distance,
-        dense_embeddings: Union[Embeddings, List[float]],
-    ):
+        dense_embeddings: Union[Embeddings, List[float], None],
+    ) -> None:
         collection_info = client.get_collection(collection_name=collection_name)
         vector_config = collection_info.config.params.vectors
 
@@ -836,17 +850,17 @@ class QdrantVectorStore(VectorStore):
 
         else:
             # vector_config is a Dict[str, VectorParams]
-            if vector_name not in vector_config:
+            if isinstance(vector_config, dict) and vector_name not in vector_config:
                 raise QdrantVectorStoreError(
                     f"Existing Qdrant collection {collection_name} does not "
                     f"contain dense vector named {vector_name}. Did you mean one of the "
-                    f"existing vectors: {', '.join(vector_config.keys())}? "
+                    f"existing vectors: {', '.join(vector_config.keys())}? "  # type: ignore
                     f"If you want to recreate the collection, set `force_recreate` "
                     f"parameter to `True`."
                 )
 
             # Get the VectorParams object for the specified vector_name
-            vector_config = vector_config[vector_name]
+            vector_config = vector_config[vector_name]  # type: ignore
 
         if isinstance(dense_embeddings, Embeddings):
             vector_size = len(dense_embeddings.embed_documents(["dummy_text"])[0])
@@ -880,7 +894,7 @@ class QdrantVectorStore(VectorStore):
         client: QdrantClient,
         collection_name: str,
         sparse_vector_name: str,
-    ):
+    ) -> None:
         collection_info = client.get_collection(collection_name=collection_name)
         sparse_vector_config = collection_info.config.params.sparse_vectors
 
@@ -901,7 +915,7 @@ class QdrantVectorStore(VectorStore):
         retrieval_mode: RetrievalMode,
         embedding: Optional[Embeddings],
         sparse_embedding: Optional[SparseEmbeddings],
-    ):
+    ) -> None:
         if retrieval_mode == RetrievalMode.DENSE and embedding is None:
             raise ValueError(
                 "'embedding' cannot be None when retrieval mode is 'dense'"
